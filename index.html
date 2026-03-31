@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shift Request</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f0e8;
+    --surface: #ffffff;
+    --border: #e0d8cc;
+    --ink: #1a1814;
+    --muted: #9a9082;
+    --accent: #c84b2f;
+    --accent-dim: rgba(200,75,47,0.08);
+    --accent-mid: rgba(200,75,47,0.3);
+    --green: #2a7a4b;
+    --green-dim: rgba(42,122,75,0.1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  /* subtle grid texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 4px;
+    width: 100%;
+    max-width: 540px;
+    position: relative;
+    box-shadow: 4px 4px 0 var(--border);
+  }
+
+  .card-header {
+    padding: 28px 32px 22px;
+    border-bottom: 1.5px solid var(--border);
+  }
+
+  .eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--ink);
+    line-height: 1.1;
+  }
+
+  .subtitle {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  .card-body { padding: 28px 32px; display: flex; flex-direction: column; gap: 24px; }
+
+  .field { display: flex; flex-direction: column; gap: 8px; }
+
+  label {
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  input[type="text"] {
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: 3px;
+    padding: 10px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.15s;
+    width: 100%;
+  }
+  input[type="text"]:focus { border-color: var(--accent-mid); }
+  input[type="text"]::placeholder { color: var(--muted); }
+
+  /* Date row */
+  .date-row { display: flex; gap: 8px; }
+  .date-row input { flex: 1; }
+
+  .btn-icon {
+    background: var(--accent-dim);
+    border: 1.5px solid var(--accent-mid);
+    color: var(--accent);
+    border-radius: 3px;
+    width: 42px;
+    font-size: 20px;
+    cursor: pointer;
+    transition: background 0.15s;
+    flex-shrink: 0;
+    font-family: 'Syne', sans-serif;
+  }
+  .btn-icon:hover { background: rgba(200,75,47,0.15); }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 28px;
+  }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-mid);
+    color: var(--accent);
+    font-size: 11px;
+    padding: 4px 9px;
+    border-radius: 2px;
+    animation: pop 0.12s ease;
+  }
+  @keyframes pop { from { opacity:0; transform:scale(0.88); } to { opacity:1; transform:scale(1); } }
+
+  .tag button {
+    background: none; border: none; color: inherit;
+    cursor: pointer; font-size: 14px; line-height: 1;
+    opacity: 0.55; padding: 0;
+  }
+  .tag button:hover { opacity: 1; }
+
+  /* Units */
+  .units-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .unit-chip {
+    border: 1.5px solid var(--border);
+    border-radius: 3px;
+    padding: 9px 12px;
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--bg);
+    transition: all 0.12s;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .unit-chip .check {
+    width: 14px; height: 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 2px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px;
+    transition: all 0.12s;
+  }
+  .unit-chip.selected {
+    border-color: var(--accent-mid);
+    background: var(--accent-dim);
+    color: var(--ink);
+  }
+  .unit-chip.selected .check {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+  .unit-chip:hover:not(.selected) { border-color: #c0b8ac; color: var(--ink); }
+
+  .divider { border: none; border-top: 1.5px solid var(--border); }
+
+  /* Footer */
+  .card-footer { padding: 0 32px 28px; display: flex; flex-direction: column; gap: 10px; }
+
+  .btn-submit {
+    width: 100%;
+    padding: 14px;
+    background: var(--accent);
+    color: white;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    box-shadow: 3px 3px 0 var(--accent-mid);
+  }
+  .btn-submit:hover { opacity: 0.9; }
+  .btn-submit:active { transform: translate(1px,1px); box-shadow: 2px 2px 0 var(--accent-mid); }
+  .btn-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-clear {
+    width: 100%;
+    padding: 10px;
+    background: none;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    border: 1.5px solid var(--border);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .btn-clear:hover { border-color: var(--accent-mid); color: var(--accent); }
+
+  .status {
+    font-size: 11px;
+    text-align: center;
+    min-height: 18px;
+    letter-spacing: 0.04em;
+  }
+  .status.ok   { color: var(--green); }
+  .status.err  { color: var(--accent); }
+  .status.info { color: var(--muted); }
+
+  /* Success overlay */
+  .success-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: var(--surface);
+    border-radius: 4px;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+    padding: 40px;
+  }
+  .success-overlay.show { display: flex; }
+  .success-icon {
+    width: 56px; height: 56px;
+    background: var(--green-dim);
+    border: 1.5px solid var(--green);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    color: var(--green);
+  }
+  .success-overlay h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--ink);
+  }
+  .success-overlay p {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+    max-width: 300px;
+  }
+  .btn-reset {
+    margin-top: 8px;
+    background: none;
+    border: 1.5px solid var(--border);
+    color: var(--muted);
+    padding: 9px 20px;
+    border-radius: 3px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    letter-spacing: 0.08em;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .btn-reset:hover { border-color: var(--ink); color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- Success overlay -->
+  <div class="success-overlay" id="successOverlay">
+    <div class="success-icon">✓</div>
+    <h2>Request Sent!</h2>
+    <p>Your shift request has been queued. You'll be notified once it's been picked up and is ready to transfer.</p>
+    <button class="btn-reset" onclick="reset()">Submit another request</button>
+  </div>
+
+  <div class="card-header">
+    <div class="eyebrow">Shift Request</div>
+    <h1>Request a Shift</h1>
+    <p class="subtitle">Fill out the form below. Once your shift is snagged,<br>you'll receive a manual transfer.</p>
+  </div>
+
+  <div class="card-body">
+
+    <!-- Dates -->
+    <div class="field">
+      <label>Target Date(s)</label>
+      <div class="date-row">
+        <input type="text" id="dateInput" placeholder='e.g. "march 25"' />
+        <button class="btn-icon" id="addDateBtn">+</button>
+      </div>
+      <div class="tags" id="dateTags"></div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Units -->
+    <div class="field">
+      <label>Buildings you'll accept</label>
+      <div class="units-grid" id="unitsGrid"></div>
+    </div>
+
+  </div>
+
+  <div class="card-footer">
+    <button class="btn-submit" id="submitBtn">SUBMIT REQUEST</button>
+    <button class="btn-clear" id="clearBtn">CLEAR</button>
+    <div class="status info" id="status">All fields required.</div>
+  </div>
+</div>
+
+<script>
+  // ── IMPORTANT: paste your ngrok URL here (no trailing slash) ──
+  const SERVER_URL = "https://unshared-nannie-pleasurelessly.ngrok-free.dev";
+  const FORM_SECRET = "x7k2-adrian-9qm";  
+
+  const UNITS = [
+    "Unit 1 - Cheney", "Unit 1 - Christian",
+    "Unit 1 - Freeborn", "Unit 1 - Deutsch",
+    "Unit 1 - Slottman", "Unit 1 - Putnam",
+    "Unit 2 - Max Martinez", "Unit 2 - Davidson",
+    "Unit 2 - Griffiths", "Unit 2 - Towle",
+    "Unit 2 - Ehrman", "Unit 2 - Wada",
+    "Unit 2 - Cunningham", "Unit 3 - Norton",
+    "Unit 3 - Spens-Black", "Unit 3 - Blackwell",
+    "Unit 3 - Ida Sproul", "Unit 3 - Beverly Cleary",
+    "Unit 3 - Priestley", "Unit 3 - Anchor House",
+    "Unit 1 - Rover",
+    "Unit 2 - Rover",
+    "Unit 3 - North Rover"
+  ];
+
+  let dates = [];
+  let selectedUnits = new Set();
+
+  // ── Dates ──
+  function renderDates() {
+    const c = document.getElementById('dateTags');
+    c.innerHTML = '';
+    dates.forEach((d, i) => {
+      const t = document.createElement('div');
+      t.className = 'tag';
+      t.innerHTML = `${d}<button onclick="removeDate(${i})">×</button>`;
+      c.appendChild(t);
+    });
+  }
+  function removeDate(i) { dates.splice(i, 1); renderDates(); }
+
+  document.getElementById('addDateBtn').onclick = addDate;
+  document.getElementById('dateInput').onkeydown = e => { if (e.key === 'Enter') addDate(); };
+
+  function addDate() {
+    const inp = document.getElementById('dateInput');
+    const v = inp.value.trim().toLowerCase();
+    if (v && !dates.includes(v)) { dates.push(v); renderDates(); }
+    inp.value = ''; inp.focus();
+  }
+
+  // ── Units ──
+  function renderUnits() {
+    const g = document.getElementById('unitsGrid');
+    g.innerHTML = '';
+    UNITS.forEach(unit => {
+      const chip = document.createElement('div');
+      chip.className = 'unit-chip' + (selectedUnits.has(unit.toLowerCase()) ? ' selected' : '');
+      chip.innerHTML = `<span class="check">${selectedUnits.has(unit.toLowerCase()) ? '✓' : ''}</span>${unit}`;
+      chip.onclick = () => toggleUnit(unit, chip);
+      g.appendChild(chip);
+    });
+  }
+  function toggleUnit(unit, el) {
+    const k = unit.toLowerCase();
+    if (selectedUnits.has(k)) { selectedUnits.delete(k); }
+    else { selectedUnits.add(k); }
+    renderUnits();
+  }
+
+  // ── Submit ──
+  document.getElementById('submitBtn').onclick = async () => {
+    if (!dates.length)       { showStatus('Add at least one date.', 'err'); return; }
+    if (!selectedUnits.size) { showStatus('Select at least one building.', 'err'); return; }
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true; btn.textContent = 'SENDING…';
+
+    try {
+      const res = await fetch(`${SERVER_URL}/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          secret: FORM_SECRET,
+          targetDates: dates,
+          allowedUnits: [...selectedUnits].map(u => { const m = u.match(/^(unit \d+) - (.+)$/i); if (!m) return u.trim(); const prefix = m[1].toLowerCase(); const name = m[2].toLowerCase().trim(); if (name.includes("rover")) return `${prefix} ${name}`; return name; })
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        document.getElementById('successOverlay').classList.add('show');
+      } else {
+        showStatus(data.error || 'Something went wrong.', 'err');
+      }
+    } catch (e) {
+      showStatus('Could not reach the server. Is it running?', 'err');
+    }
+
+    btn.disabled = false; btn.textContent = 'SUBMIT REQUEST';
+  };
+
+  function showStatus(msg, type) {
+    const el = document.getElementById('status');
+    el.textContent = msg; el.className = 'status ' + type;
+  }
+
+  function reset() {
+    dates = []; selectedUnits = new Set();
+    document.getElementById('successOverlay').classList.remove('show');
+    renderDates(); renderUnits();
+    showStatus('All fields required.', 'info');
+  }
+
+  // Check if submissions are open
+  async function checkSubmissionsOpen() {
+    try {
+      const res = await fetch(`${SERVER_URL}/status`);
+      const data = await res.json();
+      if (data.submissionsOpen === false) {
+        document.getElementById('submitBtn').disabled = true;
+        showStatus('Submissions are currently closed.', 'err');
+      } else {
+        document.getElementById('submitBtn').disabled = false;
+        showStatus('All fields required.', 'info');
+      }
+    } catch(e) {}
+  }
+
+  checkSubmissionsOpen();
+  setInterval(checkSubmissionsOpen, 10000);
+
+  document.getElementById('clearBtn').onclick = async () => {
+    try { await fetch(`${SERVER_URL}/clear`, { method: 'POST' }); } catch(e) {}
+    reset();
+    showStatus('Selections cleared.', 'info');
+  };
+renderUnits();
+renderDates();
+</script>
+</body>
+</html>
