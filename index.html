@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shift Request</title>
+<title>Today's Shift Request</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -112,52 +112,6 @@
   input[type="text"]:focus { border-color: var(--accent-mid); }
   input[type="text"]::placeholder { color: var(--muted); }
 
-  /* Date row */
-  .date-row { display: flex; gap: 8px; }
-  .date-row input { flex: 1; }
-
-  .btn-icon {
-    background: var(--accent-dim);
-    border: 1.5px solid var(--accent-mid);
-    color: var(--accent);
-    border-radius: 3px;
-    width: 42px;
-    font-size: 20px;
-    cursor: pointer;
-    transition: background 0.15s;
-    flex-shrink: 0;
-    font-family: 'Syne', sans-serif;
-  }
-  .btn-icon:hover { background: rgba(200,75,47,0.15); }
-
-  .tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    min-height: 28px;
-  }
-
-  .tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    background: var(--accent-dim);
-    border: 1px solid var(--accent-mid);
-    color: var(--accent);
-    font-size: 11px;
-    padding: 4px 9px;
-    border-radius: 2px;
-    animation: pop 0.12s ease;
-  }
-  @keyframes pop { from { opacity:0; transform:scale(0.88); } to { opacity:1; transform:scale(1); } }
-
-  .tag button {
-    background: none; border: none; color: inherit;
-    cursor: pointer; font-size: 14px; line-height: 1;
-    opacity: 0.55; padding: 0;
-  }
-  .tag button:hover { opacity: 1; }
-
   /* Units */
   .units-grid {
     display: grid;
@@ -263,6 +217,7 @@
     gap: 12px;
     text-align: center;
     padding: 40px;
+    z-index: 10;
   }
   .success-overlay.show { display: flex; }
   .success-icon {
@@ -306,35 +261,28 @@
 
 <div class="card">
 
-  <!-- Success overlay -->
   <div class="success-overlay" id="successOverlay">
     <div class="success-icon">✓</div>
     <h2>Request Sent!</h2>
-    <p>Your shift request has been queued. You'll be notified once it's been picked up and is ready to transfer.</p>
+    <p>Your request for today has been queued. You'll be notified once a shift is picked up and ready to transfer.</p>
     <button class="btn-reset" onclick="reset()">Submit another request</button>
   </div>
 
   <div class="card-header">
-    <div class="eyebrow">Shift Request</div>
-    <h1>Request a Shift</h1>
-    <p class="subtitle">Fill out the form below. Once your shift is snagged,<br>you'll receive a manual transfer.</p>
+    <div class="eyebrow">SnipeAllowed</div>
+    <h1>Today's Shifts</h1>
+    <p class="subtitle">Enter your name and the buildings you'll accept. The system will automatically scan for shifts happening today.</p>
   </div>
 
   <div class="card-body">
 
-    <!-- Dates -->
     <div class="field">
-      <label>Target Date(s)</label>
-      <div class="date-row">
-        <input type="text" id="dateInput" placeholder='e.g. "march 25"' />
-        <button class="btn-icon" id="addDateBtn">+</button>
-      </div>
-      <div class="tags" id="dateTags"></div>
+      <label>Your Name</label>
+      <input type="text" id="nameInput" placeholder='e.g. "Oski Bear"' />
     </div>
 
     <hr class="divider">
 
-    <!-- Units -->
     <div class="field">
       <label>Buildings you'll accept</label>
       <div class="units-grid" id="unitsGrid"></div>
@@ -370,31 +318,7 @@
     "Unit 3 - North Rover"
   ];
 
-  let dates = [];
   let selectedUnits = new Set();
-
-  // ── Dates ──
-  function renderDates() {
-    const c = document.getElementById('dateTags');
-    c.innerHTML = '';
-    dates.forEach((d, i) => {
-      const t = document.createElement('div');
-      t.className = 'tag';
-      t.innerHTML = `${d}<button onclick="removeDate(${i})">×</button>`;
-      c.appendChild(t);
-    });
-  }
-  function removeDate(i) { dates.splice(i, 1); renderDates(); }
-
-  document.getElementById('addDateBtn').onclick = addDate;
-  document.getElementById('dateInput').onkeydown = e => { if (e.key === 'Enter') addDate(); };
-
-  function addDate() {
-    const inp = document.getElementById('dateInput');
-    const v = inp.value.trim().toLowerCase();
-    if (v && !dates.includes(v)) { dates.push(v); renderDates(); }
-    inp.value = ''; inp.focus();
-  }
 
   // ── Units ──
   function renderUnits() {
@@ -417,11 +341,20 @@
 
   // ── Submit ──
   document.getElementById('submitBtn').onclick = async () => {
-    if (!dates.length)       { showStatus('Add at least one date.', 'err'); return; }
+    const name = document.getElementById('nameInput').value.trim();
+    
+    if (!name) { showStatus('Please enter your name.', 'err'); return; }
     if (!selectedUnits.size) { showStatus('Select at least one building.', 'err'); return; }
 
     const btn = document.getElementById('submitBtn');
     btn.disabled = true; btn.textContent = 'SENDING…';
+
+    // Dynamically generate today's date formats for the snipe script to match
+    const today = new Date();
+    const monthLong = today.toLocaleString('en-US', { month: 'long' }).toLowerCase();
+    const monthShort = today.toLocaleString('en-US', { month: 'short' }).toLowerCase();
+    const day = today.getDate();
+    const todaysDates = [`${monthLong} ${day}`, `${monthShort} ${day}`];
 
     try {
       const res = await fetch(`${SERVER_URL}/request`, {
@@ -429,8 +362,16 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           secret: FORM_SECRET,
-          targetDates: dates,
-          allowedUnits: [...selectedUnits].map(u => { const m = u.match(/^(unit \d+) - (.+)$/i); if (!m) return u.trim(); const prefix = m[1].toLowerCase(); const name = m[2].toLowerCase().trim(); if (name.includes("rover")) return `${prefix} ${name}`; return name; })
+          requesterName: name,
+          targetDates: todaysDates,
+          allowedUnits: [...selectedUnits].map(u => { 
+            const m = u.match(/^(unit \d+) - (.+)$/i); 
+            if (!m) return u.trim(); 
+            const prefix = m[1].toLowerCase(); 
+            const unitName = m[2].toLowerCase().trim(); 
+            if (unitName.includes("rover")) return `${prefix} ${unitName}`; 
+            return unitName; 
+          })
         })
       });
       const data = await res.json();
@@ -452,9 +393,10 @@
   }
 
   function reset() {
-    dates = []; selectedUnits = new Set();
+    document.getElementById('nameInput').value = '';
+    selectedUnits = new Set();
     document.getElementById('successOverlay').classList.remove('show');
-    renderDates(); renderUnits();
+    renderUnits();
     showStatus('All fields required.', 'info');
   }
 
@@ -481,8 +423,9 @@
     reset();
     showStatus('Selections cleared.', 'info');
   };
-renderUnits();
-renderDates();
+  
+  // Initial render
+  renderUnits();
 </script>
 </body>
 </html>
