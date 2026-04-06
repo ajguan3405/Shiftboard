@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Today's Shift Request</title>
+<title>Shift Request</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -32,7 +32,6 @@
     padding: 24px;
   }
 
-  /* subtle grid texture */
   body::before {
     content: '';
     position: fixed;
@@ -111,6 +110,33 @@
   }
   input[type="text"]:focus { border-color: var(--accent-mid); }
   input[type="text"]::placeholder { color: var(--muted); }
+
+  /* ── Date input ── */
+  .date-input-wrap { position: relative; }
+
+  input[type="text"].date-text {
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: 3px;
+    padding: 10px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.15s;
+    width: 100%;
+  }
+  input[type="text"].date-text:focus { border-color: var(--accent-mid); }
+  input[type="text"].date-text::placeholder { color: var(--muted); }
+  input[type="text"].date-text.valid   { border-color: rgba(42,122,75,0.4); }
+  input[type="text"].date-text.invalid { border-color: var(--accent-mid); }
+
+  .date-preview {
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+    min-height: 14px;
+  }
 
   /* Units */
   .units-grid {
@@ -241,6 +267,12 @@
     line-height: 1.6;
     max-width: 300px;
   }
+  .success-date {
+    font-size: 11px;
+    color: var(--accent);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.06em;
+  }
   .btn-reset {
     margin-top: 8px;
     background: none;
@@ -264,14 +296,15 @@
   <div class="success-overlay" id="successOverlay">
     <div class="success-icon">✓</div>
     <h2>Request Sent!</h2>
-    <p>Your request for today has been queued. You'll be notified once a shift is picked up and ready to transfer.</p>
+    <p>Your request has been queued. You'll be notified once a shift is picked up and ready to transfer.</p>
+    <div class="success-date" id="successDate"></div>
     <button class="btn-reset" onclick="reset()">Submit another request</button>
   </div>
 
   <div class="card-header">
     <div class="eyebrow">SnipeAllowed</div>
-    <h1>Today's Shifts</h1>
-    <p class="subtitle">Enter your name and the buildings you'll accept. The system will automatically scan for shifts happening today.</p>
+    <h1>Request a Shift</h1>
+    <p class="subtitle">Enter your name, pick a date, and select the buildings you'll accept.</p>
   </div>
 
   <div class="card-body">
@@ -279,6 +312,19 @@
     <div class="field">
       <label>Your Name</label>
       <input type="text" id="nameInput" placeholder='e.g. "Oski Bear"' />
+    </div>
+
+    <hr class="divider">
+
+    <div class="field">
+      <label>Shift Date</label>
+      <div class="date-input-wrap">
+        <input type="text" class="date-text" id="dateInput"
+               placeholder="e.g. April 3"
+               oninput="onDateInput()"
+               autocomplete="off" />
+      </div>
+      <div class="date-preview" id="datePreview"></div>
     </div>
 
     <hr class="divider">
@@ -298,29 +344,97 @@
 </div>
 
 <script>
-  // ── IMPORTANT: paste your ngrok URL here (no trailing slash) ──
-  const SERVER_URL = "https://unshared-nannie-pleasurelessly.ngrok-free.dev";
-  const FORM_SECRET = "x7k2-adrian-9qm";  
+  const SERVER_URL  = "https://unshared-nannie-pleasurelessly.ngrok-free.dev";
+  const FORM_SECRET = "x7k2-adrian-9qm";
 
   const UNITS = [
-    "Unit 1 - Cheney", "Unit 1 - Christian",
-    "Unit 1 - Freeborn", "Unit 1 - Deutsch",
-    "Unit 1 - Slottman", "Unit 1 - Putnam",
+    "Unit 1 - Cheney",       "Unit 1 - Christian",
+    "Unit 1 - Freeborn",     "Unit 1 - Deutsch",
+    "Unit 1 - Slottman",     "Unit 1 - Putnam",
     "Unit 2 - Max Martinez", "Unit 2 - Davidson",
-    "Unit 2 - Griffiths", "Unit 2 - Towle",
-    "Unit 2 - Ehrman", "Unit 2 - Wada",
-    "Unit 2 - Cunningham", "Unit 3 - Norton",
-    "Unit 3 - Spens-Black", "Unit 3 - Blackwell",
-    "Unit 3 - Ida Sproul", "Unit 3 - Beverly Cleary",
-    "Unit 3 - Priestley", "Unit 3 - Anchor House",
+    "Unit 2 - Griffiths",    "Unit 2 - Towle",
+    "Unit 2 - Ehrman",       "Unit 2 - Wada",
+    "Unit 2 - Cunningham",   "Unit 3 - Norton",
+    "Unit 3 - Spens-Black",  "Unit 3 - Blackwell",
+    "Unit 3 - Ida Sproul",   "Unit 3 - Beverly Cleary",
+    "Unit 3 - Priestley",    "Unit 3 - Anchor House",
     "Unit 1 - Rover",
     "Unit 2 - Rover",
     "Unit 3 - North Rover"
   ];
 
-  let selectedUnits = new Set();
+  let selectedUnits   = new Set();
+  let selectedDateObj = null;
 
-  // ── Units ──
+  // ── Date parsing ──────────────────────────────────────────────────────
+
+  const MONTHS = {
+    january:1, february:2, march:3, april:4, may:5, june:6,
+    july:7, august:8, september:9, october:10, november:11, december:12,
+    jan:1, feb:2, mar:3, apr:4, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12
+  };
+
+  function parseDate(raw) {
+    // Accepts "April 3", "apr 3", "april 3" — month name + space + number, no ordinals
+    const parts = raw.trim().toLowerCase().split(/\s+/);
+    if (parts.length < 2) return null;
+    const month = MONTHS[parts[0]];
+    const day   = parseInt(parts[1], 10);
+    if (!month || isNaN(day) || day < 1 || day > 31) return null;
+    const year  = new Date().getFullYear();
+    const d     = new Date(year, month - 1, day);
+    // Verify date is real (e.g. not Feb 30)
+    if (d.getMonth() !== month - 1) return null;
+    return d;
+  }
+
+  function dateToFormats(d) {
+    const monthLong  = d.toLocaleString('en-US', { month: 'long'  }).toLowerCase();
+    const monthShort = d.toLocaleString('en-US', { month: 'short' }).toLowerCase();
+    const day        = d.getDate();
+    return [`${monthLong} ${day}`, `${monthShort} ${day}`];
+  }
+
+  function friendlyDate(d) {
+    const today    = new Date(); today.setHours(0,0,0,0);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+    const cmp      = new Date(d); cmp.setHours(0,0,0,0);
+    if (cmp.getTime() === today.getTime())    return 'Today';
+    if (cmp.getTime() === tomorrow.getTime()) return 'Tomorrow';
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+
+  function onDateInput() {
+    const raw     = document.getElementById('dateInput').value;
+    const input   = document.getElementById('dateInput');
+    const preview = document.getElementById('datePreview');
+
+    if (!raw.trim()) {
+      selectedDateObj = null;
+      input.className = 'date-text';
+      preview.textContent = '';
+      return;
+    }
+
+    const parsed = parseDate(raw);
+    if (parsed) {
+      selectedDateObj = parsed;
+      input.className = 'date-text valid';
+      const [fmt1] = dateToFormats(parsed);
+      preview.textContent = `→ ${friendlyDate(parsed)} · scanning "${fmt1}"`;
+      preview.style.color = 'var(--green)';
+    } else {
+      selectedDateObj = null;
+      input.className = 'date-text invalid';
+      preview.textContent = '→ type a month and day, e.g. April 3';
+      preview.style.color = 'var(--accent)';
+    }
+  }
+
+  // No default date — leave blank so user must type it intentionally
+
+  // ── Units ─────────────────────────────────────────────────────────────
+
   function renderUnits() {
     const g = document.getElementById('unitsGrid');
     g.innerHTML = '';
@@ -328,54 +442,51 @@
       const chip = document.createElement('div');
       chip.className = 'unit-chip' + (selectedUnits.has(unit.toLowerCase()) ? ' selected' : '');
       chip.innerHTML = `<span class="check">${selectedUnits.has(unit.toLowerCase()) ? '✓' : ''}</span>${unit}`;
-      chip.onclick = () => toggleUnit(unit, chip);
+      chip.onclick = () => {
+        const k = unit.toLowerCase();
+        selectedUnits.has(k) ? selectedUnits.delete(k) : selectedUnits.add(k);
+        renderUnits();
+      };
       g.appendChild(chip);
     });
   }
-  function toggleUnit(unit, el) {
-    const k = unit.toLowerCase();
-    if (selectedUnits.has(k)) { selectedUnits.delete(k); }
-    else { selectedUnits.add(k); }
-    renderUnits();
-  }
 
-  // ── Submit ──
+  // ── Submit ────────────────────────────────────────────────────────────
+
   document.getElementById('submitBtn').onclick = async () => {
     const name = document.getElementById('nameInput').value.trim();
-    
-    if (!name) { showStatus('Please enter your name.', 'err'); return; }
-    if (!selectedUnits.size) { showStatus('Select at least one building.', 'err'); return; }
+    if (!name)              { showStatus('Please enter your name.', 'err');        return; }
+    if (!selectedDateObj)   { showStatus('Please select a date.', 'err');          return; }
+    if (!selectedUnits.size){ showStatus('Select at least one building.', 'err');  return; }
 
     const btn = document.getElementById('submitBtn');
     btn.disabled = true; btn.textContent = 'SENDING…';
 
-    // Dynamically generate today's date formats for the snipe script to match
-    const today = new Date();
-    const monthLong = today.toLocaleString('en-US', { month: 'long' }).toLowerCase();
-    const monthShort = today.toLocaleString('en-US', { month: 'short' }).toLowerCase();
-    const day = today.getDate();
-    const todaysDates = [`${monthLong} ${day}`, `${monthShort} ${day}`];
+    const targetDates = dateToFormats(selectedDateObj);
 
     try {
       const res = await fetch(`${SERVER_URL}/request`, {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          secret: FORM_SECRET,
+          secret:        FORM_SECRET,
           requesterName: name,
-          targetDates: todaysDates,
-          allowedUnits: [...selectedUnits].map(u => { 
-            const m = u.match(/^(unit \d+) - (.+)$/i); 
-            if (!m) return u.trim(); 
-            const prefix = m[1].toLowerCase(); 
-            const unitName = m[2].toLowerCase().trim(); 
-            if (unitName.includes("rover")) return `${prefix} ${unitName}`; 
-            return unitName; 
+          targetDates,
+          allowedUnits:  [...selectedUnits].map(u => {
+            const m = u.match(/^(unit \d+) - (.+)$/i);
+            if (!m) return u.trim();
+            const prefix   = m[1].toLowerCase();
+            const unitName = m[2].toLowerCase().trim();
+            if (unitName.includes("rover")) return `${prefix} ${unitName}`;
+            return unitName;
           })
         })
       });
       const data = await res.json();
       if (res.ok && data.ok) {
+        const [fmt1] = targetDates;
+        document.getElementById('successDate').textContent =
+          `Date: ${friendlyDate(selectedDateObj)} · ${fmt1}`;
         document.getElementById('successOverlay').classList.add('show');
       } else {
         showStatus(data.error || 'Something went wrong.', 'err');
@@ -387,6 +498,8 @@
     btn.disabled = false; btn.textContent = 'SUBMIT REQUEST';
   };
 
+  // ── Helpers ───────────────────────────────────────────────────────────
+
   function showStatus(msg, type) {
     const el = document.getElementById('status');
     el.textContent = msg; el.className = 'status ' + type;
@@ -394,16 +507,21 @@
 
   function reset() {
     document.getElementById('nameInput').value = '';
-    selectedUnits = new Set();
+    document.getElementById('dateInput').value = '';
+    document.getElementById('dateInput').className = 'date-text';
+    document.getElementById('datePreview').textContent = '';
+    selectedDateObj = null;
+    selectedUnits   = new Set();
     document.getElementById('successOverlay').classList.remove('show');
     renderUnits();
     showStatus('All fields required.', 'info');
   }
 
-  // Check if submissions are open
+  // ── Submissions open/closed poll ──────────────────────────────────────
+
   async function checkSubmissionsOpen() {
     try {
-      const res = await fetch(`${SERVER_URL}/status`);
+      const res  = await fetch(`${SERVER_URL}/status`);
       const data = await res.json();
       if (data.submissionsOpen === false) {
         document.getElementById('submitBtn').disabled = true;
@@ -423,8 +541,7 @@
     reset();
     showStatus('Selections cleared.', 'info');
   };
-  
-  // Initial render
+
   renderUnits();
 </script>
 </body>
