@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SnipeAllowed Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e0f;
+    --surface: #18181b;
+    --surface2: #1f1f24;
+    --border: #2a2a2e;
+    --accent: #00ff99;
+    --accent-dim: rgba(0,255,153,0.10);
+    --accent-mid: rgba(0,255,153,0.4);
+    --text: #e8e8ec;
+    --muted: #6b6b75;
+    --danger: #ff4d6d;
+    --danger-dim: rgba(255,77,109,0.10);
+    --danger-mid: rgba(255,77,109,0.35);
+    --gold: #f5c842;
+    --gold-dim: rgba(245,200,66,0.10);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px 24px 64px;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 50% at 30% 80%, rgba(0,255,153,0.03) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .layout { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* ── Card ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 24px 28px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .eyebrow {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  h1 {
+    font-family: 'Space Mono', monospace;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  h2 {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .card-body { padding: 22px 28px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* ── Status indicator ── */
+  .status-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .status-dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+  .status-dot.open   { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  .status-dot.closed { background: var(--danger);  box-shadow: 0 0 8px var(--danger); }
+  .status-dot.idle   { background: var(--muted);   box-shadow: none; }
+
+  .status-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    line-height: 1;
+  }
+  .status-text .sub { color: var(--muted); font-size: 10px; display: block; margin-top: 4px; }
+
+  /* ── Button rows ── */
+  .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+  .btn {
+    padding: 11px 10px;
+    border-radius: 8px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    border: none;
+    transition: opacity 0.15s, transform 0.1s, background 0.15s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .btn-open  { background: var(--accent); color: #000; }
+  .btn-open:hover:not(:disabled) { opacity: 0.85; }
+
+  .btn-close { background: var(--danger-dim); border: 1px solid var(--danger-mid); color: var(--danger); }
+  .btn-close:hover:not(:disabled) { background: rgba(255,77,109,0.18); }
+
+  .btn-clear { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); }
+  .btn-clear:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+
+  .msg {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    text-align: center;
+    min-height: 14px;
+    letter-spacing: 0.04em;
+  }
+  .msg.ok  { color: var(--accent); }
+  .msg.err { color: var(--danger); }
+  .msg.warn { color: var(--gold); }
+
+  /* ── Union preview ── */
+  .union-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+  }
+  .union-box .label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .union-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+  .union-tag {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-mid);
+    color: var(--accent);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.05em;
+  }
+  .union-empty { color: var(--muted); font-family: 'Space Mono', monospace; font-size: 10px; }
+
+  /* ── Queue ── */
+  .queue-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .queue-count {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    padding: 2px 10px;
+  }
+
+  .queue-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .queue-entry {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+    transition: border-color 0.2s;
+  }
+  .queue-entry:hover { border-color: #3a3a42; }
+  .queue-entry.first { border-color: var(--accent-mid); }
+
+  .queue-entry-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .queue-pos {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 7px;
+    flex-shrink: 0;
+  }
+  .queue-entry.first .queue-pos {
+    background: var(--accent-dim);
+    border-color: var(--accent-mid);
+    color: var(--accent);
+  }
+
+  .queue-name {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    flex: 1;
+  }
+
+  .queue-time {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .queue-units { display: flex; flex-wrap: wrap; gap: 4px; }
+  .queue-unit-tag {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+  }
+
+  .btn-remove {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 5px;
+    padding: 3px 8px;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .btn-remove:hover { border-color: var(--danger-mid); color: var(--danger); }
+
+  .queue-empty {
+    text-align: center;
+    padding: 28px 0;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ── Completed shifts ── */
+  .completed-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .completed-entry {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .completed-icon {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-mid);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .completed-info { flex: 1; min-width: 0; }
+
+  .completed-name {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .completed-unit {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .completed-time {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    flex-shrink: 0;
+    text-align: right;
+  }
+
+  .completed-empty {
+    text-align: center;
+    padding: 28px 0;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .history-count {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    padding: 2px 10px;
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ── Status Card ── -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="eyebrow">Admin Panel</div>
+        <h1>SNIPEALLOWED</h1>
+      </div>
+    </div>
+
+    <div class="card-body">
+
+      <div class="status-box">
+        <div class="status-dot" id="statusDot"></div>
+        <div class="status-text" id="statusText">
+          Loading...
+          <span class="sub" id="statusSub"></span>
+        </div>
+      </div>
+
+      <!-- Open / Close / Clear -->
+      <div class="btn-row-3">
+        <button class="btn btn-open"  onclick="adminAction('open')">OPEN</button>
+        <button class="btn btn-close" onclick="adminAction('close')">CLOSE</button>
+        <button class="btn btn-clear" onclick="adminAction('clear')" title="Clear entire queue and reset">CLEAR ALL</button>
+      </div>
+
+      <div class="msg" id="msg"></div>
+
+    </div>
+  </div>
+
+  <!-- ── Active Union Card ── -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="eyebrow">Currently Scanning</div>
+        <h2>ACTIVE BUILDINGS</h2>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="union-box">
+        <div class="label">Union of all queue entries</div>
+        <div class="union-tags" id="unionTags">
+          <span class="union-empty">No active buildings</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Queue Card ── -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="eyebrow">Shift Queue</div>
+        <h2>PENDING REQUESTS</h2>
+      </div>
+      <div class="queue-count" id="queueCount">0 in queue</div>
+    </div>
+    <div class="card-body">
+      <div class="queue-list" id="queueList">
+        <div class="queue-empty">No requests yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Completed Shifts Card ── -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="eyebrow">Activity Log</div>
+        <h2>SHIFTS TAKEN</h2>
+      </div>
+      <div class="history-count" id="historyCount">0 taken</div>
+    </div>
+    <div class="card-body">
+      <div class="completed-list" id="completedList">
+        <div class="completed-empty">No shifts taken yet.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const ADMIN_PAGE_PASSWORD = "Mineklop1234$";
+
+  // ── Password gate ─────────────────────────────────────────────────────
+  (function () {
+    const stored = sessionStorage.getItem('admin_auth');
+    if (stored !== ADMIN_PAGE_PASSWORD) {
+      document.body.style.display = 'none';
+      const pwd = prompt('Enter admin password:');
+      if (pwd !== ADMIN_PAGE_PASSWORD) {
+        document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:monospace;color:#ff4d6d;background:#0e0e0f;font-size:14px;">Access denied.</div>';
+        document.body.style.display = '';
+        return;
+      }
+      sessionStorage.setItem('admin_auth', pwd);
+      document.body.style.display = '';
+    }
+  })();
+
+  const SERVER_URL = "https://unshared-nannie-pleasurelessly.ngrok-free.dev";
+
+  // ── Fetch & render status ─────────────────────────────────────────────
+  async function fetchStatus() {
+    try {
+      const res  = await fetch(`${SERVER_URL}/status`, {
+        headers: { 'ngrok-skip-browser-warning': '1' }
+      });
+      const data = await res.json();
+
+      const isOpen = data.submissionsOpen !== false;
+      const dot    = document.getElementById('statusDot');
+      const txt    = document.getElementById('statusText');
+      const sub    = document.getElementById('statusSub');
+
+      dot.className = 'status-dot ' + (isOpen ? 'open' : 'closed');
+      txt.childNodes[0].textContent = isOpen ? 'Submissions OPEN' : 'Submissions CLOSED';
+      sub.textContent = `Status: ${data.status || 'idle'} · Queue: ${(data.queue || []).length}`;
+
+      renderUnion(data.allowedUnits || []);
+      renderQueue(data.queue || []);
+      renderCompleted(data.completedShifts || []);
+
+    } catch(e) {
+      document.getElementById('statusText').childNodes[0].textContent = 'Server unreachable';
+    }
+  }
+
+  // ── Render union tags ─────────────────────────────────────────────────
+  function renderUnion(units) {
+    const el = document.getElementById('unionTags');
+    if (!units.length) {
+      el.innerHTML = '<span class="union-empty">No active buildings</span>';
+      return;
+    }
+    el.innerHTML = units.map(u =>
+      `<span class="union-tag">${u}</span>`
+    ).join('');
+  }
+
+  // ── Render queue ──────────────────────────────────────────────────────
+  function renderQueue(queue) {
+    const list  = document.getElementById('queueList');
+    const count = document.getElementById('queueCount');
+
+    count.textContent = `${queue.length} in queue`;
+
+    if (!queue.length) {
+      list.innerHTML = '<div class="queue-empty">No requests yet.</div>';
+      return;
+    }
+
+    list.innerHTML = queue.map((entry, i) => {
+      const isFirst = i === 0;
+      const time    = formatTime(entry.submittedAt);
+      const units   = (entry.allowedUnits || []).map(u =>
+        `<span class="queue-unit-tag">${u}</span>`
+      ).join('');
+
+      return `
+        <div class="queue-entry ${isFirst ? 'first' : ''}">
+          <div class="queue-entry-top">
+            <span class="queue-pos">#${i + 1}${isFirst ? ' · NEXT' : ''}</span>
+            <span class="queue-name">${escHtml(entry.requesterName)}</span>
+            <span class="queue-time">${time}</span>
+            <button class="btn-remove" onclick="removeEntry('${entry.id}')">✕ remove</button>
+          </div>
+          <div class="queue-units">${units || '<span class="union-empty">no units</span>'}</div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Admin actions ─────────────────────────────────────────────────────
+  async function adminAction(action) {
+    const confirmMsg = action === 'clear'
+      ? 'Clear the entire queue and reset all state?'
+      : null;
+    if (confirmMsg && !confirm(confirmMsg)) return;
+
+    try {
+      const res  = await fetch(`${SERVER_URL}/admin`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+        body:    JSON.stringify({ password: "changeme123", action })
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        const msgs = { open: '✓ Submissions opened.', close: '✓ Submissions closed.', clear: '✓ Queue cleared.' };
+        showMsg(msgs[action] || '✓ Done.', 'ok');
+        fetchStatus();
+      } else {
+        showMsg(data.error || 'Error.', 'err');
+      }
+    } catch(e) { showMsg('Could not reach server.', 'err'); }
+  }
+
+  // ── Remove single entry ───────────────────────────────────────────────
+  async function removeEntry(id) {
+    try {
+      const res  = await fetch(`${SERVER_URL}/admin`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+        body:    JSON.stringify({ password: "changeme123", action: 'remove', id })
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        showMsg('✓ Entry removed.', 'ok');
+        fetchStatus();
+      } else {
+        showMsg(data.error || 'Error.', 'err');
+      }
+    } catch(e) { showMsg('Could not reach server.', 'err'); }
+  }
+
+  // ── Render completed shifts ───────────────────────────────────────────
+  function renderCompleted(shifts) {
+    const list  = document.getElementById('completedList');
+    const count = document.getElementById('historyCount');
+
+    count.textContent = `${shifts.length} taken`;
+
+    if (!shifts.length) {
+      list.innerHTML = '<div class="completed-empty">No shifts taken yet.</div>';
+      return;
+    }
+
+    // Show most recent first
+    list.innerHTML = [...shifts].reverse().map((s, i) => {
+      const isLatest = i === 0;
+      return `
+        <div class="completed-entry">
+          <div class="completed-icon">✓</div>
+          <div class="completed-info">
+            <div class="completed-name">${escHtml(s.requesterName)}</div>
+            <div class="completed-unit">${escHtml(s.unit)}</div>
+          </div>
+          <div class="completed-time">
+            ${formatTime(s.takenAt)}<br>
+            <span style="font-size:8px;color:var(--muted)">${formatDate(s.takenAt)}</span>
+            ${isLatest ? '<br><span style="color:var(--accent);font-size:8px">● LATEST</span>' : ''}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────
+  function showMsg(msg, type) {
+    const el = document.getElementById('msg');
+    el.textContent = msg;
+    el.className   = 'msg ' + type;
+    setTimeout(() => { el.textContent = ''; el.className = 'msg'; }, 4000);
+  }
+
+  function formatTime(iso) {
+    if (!iso) return '—';
+    try {
+      const d = new Date(iso);
+      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    } catch { return '—'; }
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '';
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch { return ''; }
+  }
+
+  function escHtml(str) {
+    return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // Poll every 4 seconds
+  fetchStatus();
+  setInterval(fetchStatus, 4000);
+</script>
+</body>
+</html>
